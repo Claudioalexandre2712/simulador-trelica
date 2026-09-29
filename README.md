@@ -42,3 +42,5 @@ EOF
 ```
 
 Mudanças só no HTML ou no CSS não exigem esse passo.
+
+Feito por Claudio Alexandre.
