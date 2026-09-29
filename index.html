@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>Treliça</title>
+<style>
+:root{
+  --ink:#111827; --muted:#6b7280; --faint:#a3aab5; --line:#e8eaee; --soft:#f4f5f7;
+  --t:#2563eb; --c:#dc2626; --z:#cfd4db; --ok:#15803d; --warn:#b45309;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:#fff;color:var(--ink);font:15px/1.45 system-ui,"Segoe UI",Roboto,-apple-system,sans-serif;overflow:hidden;-webkit-text-size-adjust:100%}
+button,input{font:inherit;color:inherit}
+
+#stage{position:fixed;left:0;right:0;top:56px;bottom:104px;width:100%;height:calc(100% - 160px);display:block;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+
+.brand{position:fixed;top:18px;left:22px;margin:0;font-size:15px;font-weight:600;letter-spacing:.01em;z-index:5}
+
+/* botão de menu (3 barras) */
+.menu-btn{position:fixed;top:8px;right:8px;width:52px;height:52px;border:0;border-radius:14px;background:transparent;cursor:pointer;z-index:40;display:grid;place-items:center;touch-action:manipulation}
+.menu-btn:hover{background:var(--soft)}
+.menu-btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.bars{position:relative;width:22px;height:16px}
+.bars span{position:absolute;left:0;width:22px;height:2px;border-radius:2px;background:var(--ink);transition:transform .25s ease,opacity .2s ease,top .25s ease}
+.bars span:nth-child(1){top:0} .bars span:nth-child(2){top:7px} .bars span:nth-child(3){top:14px}
+.open .bars span:nth-child(1){top:7px;transform:rotate(45deg)}
+.open .bars span:nth-child(2){opacity:0}
+.open .bars span:nth-child(3){top:7px;transform:rotate(-45deg)}
+
+/* gaveta de opções */
+.scrim{position:fixed;inset:0;background:rgba(17,24,39,.16);opacity:0;pointer-events:none;transition:opacity .25s;z-index:20}
+.scrim.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(340px,90vw);background:#fff;z-index:30;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+  padding:76px 24px max(28px,env(safe-area-inset-bottom));box-shadow:-16px 0 48px rgba(17,24,39,.12);transform:translateX(104%);transition:transform .3s cubic-bezier(.2,.8,.2,1);visibility:hidden}
+.drawer.open{transform:none;visibility:visible}
+.sec{padding:16px 0;border-top:1px solid var(--line)}
+.sec:first-child{border-top:0;padding-top:0}
+.sec h2{margin:0 0 10px;font-size:13px;font-weight:600;color:var(--muted)}
+
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:#fff;font-size:20px;line-height:1;cursor:pointer}
+.stepper button:hover{background:var(--soft)}
+.stepper label{flex:1;display:flex;align-items:baseline;justify-content:center;gap:6px}
+.stepper input{width:84px;border:0;border-bottom:1px solid var(--line);text-align:center;font-size:26px;font-weight:600;padding:2px 0;background:transparent;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
+.stepper input::-webkit-outer-spin-button,.stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.stepper input:focus{outline:0;border-color:var(--ink)}
+.stepper em{font-style:normal;color:var(--muted)}
+
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:46px;cursor:pointer}
+.sw{appearance:none;-webkit-appearance:none;width:44px;height:26px;border-radius:13px;background:#dfe2e7;position:relative;cursor:pointer;flex:0 0 auto;transition:background .2s;margin:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+.sw:checked{background:var(--ink)}
+.sw:checked::after{transform:translateX(18px)}
+.sw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.seg{display:flex;background:var(--soft);border-radius:12px;padding:4px}
+.seg button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08);font-weight:600}
+
+.fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted);min-width:0}
+.field span.box{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;min-width:0}
+.field input{flex:1;width:100%;min-width:0;border:0;outline:0;background:transparent;font-size:16px;color:var(--ink)}
+.field em{font-style:normal}
+.field span.box:focus-within{border-color:var(--ink)}
+
+.actions{display:flex;flex-direction:column;gap:8px}
+.btn{min-height:46px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--soft)}
+.btn:focus-visible,.seg button:focus-visible,.stepper button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+.status{font-size:14px;display:flex;align-items:center;gap:8px}
+.status.ok{color:var(--ok)} .status.bad{color:var(--warn)}
+.note{font-size:12px;color:var(--faint);line-height:1.5;margin:0}
+.err{color:var(--warn);font-size:13px;margin:6px 0 0}
+.err:empty{display:none}
+
+/* rodapé: dica, seleção e legenda */
+.foot{position:fixed;left:0;right:0;bottom:max(18px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none;z-index:5;padding:0 16px}
+.hint{color:var(--muted);font-size:14px;transition:opacity .3s;text-align:center}
+.hint.hide{opacity:0}
+.pill{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-size:14px;box-shadow:0 6px 20px rgba(17,24,39,.07);transition:opacity .2s,transform .2s;opacity:0;transform:translateY(6px)}
+.pill.show{opacity:1;transform:none}
+.pill b{font-weight:600}
+.legend{display:flex;gap:18px;font-size:12.5px;color:var(--muted);flex-wrap:wrap;justify-content:center}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.dot.t{background:var(--t)} .dot.c{background:var(--c)} .dot.z{background:var(--z)}
+
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);max-width:min(420px,90vw);background:#fff;border:1px solid #f3d9b1;color:var(--warn);border-radius:12px;padding:10px 14px;font-size:14px;box-shadow:0 6px 20px rgba(17,24,39,.08);z-index:6}
+
+/* SVG */
+.m{fill:none;stroke-linecap:round;transition:stroke .35s ease,stroke-width .35s ease}
+.m.T{stroke:var(--t)} .m.C{stroke:var(--c)} .m.Z,.m.X{stroke:var(--z)}
+.halo{fill:none;stroke:var(--ink);stroke-linecap:round;opacity:0;transition:opacity .2s}
+.halo.on{opacity:.12}
+.hit{stroke:rgba(0,0,0,0);fill:none;stroke-linecap:round;cursor:pointer;pointer-events:stroke}
+.node{fill:#fff;stroke:var(--ink);transition:fill .2s}
+.ng.loaded .node{fill:var(--ink)}
+.nhalo{fill:var(--ink);opacity:0;transition:opacity .2s}
+.ng.free{cursor:pointer}
+.ng.free:hover .nhalo{opacity:.07}
+.hitn{fill:rgba(0,0,0,0)}
+.ng:focus{outline:none}
+.ng:focus-visible .nhalo{opacity:.14}
+.sup{fill:#fff;stroke:var(--ink);stroke-linejoin:round}
+.gnd{stroke:var(--faint);fill:none;stroke-linecap:round}
+.wg{opacity:0;transform:translateY(-8px);transition:opacity .25s ease,transform .3s cubic-bezier(.2,.8,.2,1);pointer-events:none}
+.wg.on{opacity:1;transform:none}
+.string{stroke:var(--faint)}
+.wt{fill:#2b3240}
+.lbl{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fff;stroke-linejoin:round}
+.lbl.T{fill:var(--t)} .lbl.C{fill:var(--c)} .lbl.Z{fill:var(--muted)}
+.lbl.n{fill:var(--ink);font-size:14px}
+.lbl.k{fill:var(--muted);font-weight:500}
+.def{stroke:var(--faint);fill:none;stroke-linecap:round}
+.rx{stroke:var(--muted);fill:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<h1 class="brand">Treliça</h1>
+
+<svg id="stage" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" aria-label="Treliça. Toque em um nó para pendurar um peso."></svg>
+
+<div class="toast" id="toast" role="alert" hidden></div>
+
+<div class="foot">
+  <div class="pill" id="pill" aria-live="polite"></div>
+  <div class="hint" id="hint">Toque em um nó para pendurar um peso</div>
+  <div class="legend" aria-label="Legenda">
+    <span><i class="dot t"></i>Tração</span>
+    <span><i class="dot c"></i>Compressão</span>
+    <span><i class="dot z"></i>Sem esforço</span>
+  </div>
+</div>
+
+<button class="menu-btn" id="menu-btn" type="button" aria-label="Abrir opções" aria-expanded="false" aria-controls="drawer">
+  <span class="bars" aria-hidden="true"><span></span><span></span><span></span></span>
+</button>
+<div class="scrim" id="scrim"></div>
+
+<aside class="drawer" id="drawer" aria-label="Opções">
+  <div class="sec">
+    <h2>Peso em cada nó</h2>
+    <div class="stepper">
+      <button type="button" id="m-dec" aria-label="Diminuir peso">&minus;</button>
+      <label><input id="mass" type="number" inputmode="decimal" step="any" min="0" aria-label="Peso em kg"><em>kg</em></label>
+      <button type="button" id="m-inc" aria-label="Aumentar peso">+</button>
+    </div>
+    <p class="err" id="err-mass" role="alert"></p>
+  </div>
+
+  <div class="sec">
+    <h2>Mostrar</h2>
+    <label class="row">Valores das forças<input class="sw" type="checkbox" data-show="values"></label>
+    <label class="row">Nomes dos nós<input class="sw" type="checkbox" data-show="names"></label>
+    <label class="row">Reações nos apoios<input class="sw" type="checkbox" data-show="reactions"></label>
+    <label class="row">Deformada (ampliada)<input class="sw" type="checkbox" data-show="deformed"></label>
+  </div>
+
+  <div class="sec">
+    <h2>Apoio da direita</h2>
+    <div class="seg" role="group" aria-label="Apoio da direita">
+      <button type="button" data-sup="roller" aria-pressed="true">Móvel</button>
+      <button type="button" data-sup="pin" aria-pressed="false">Fixo</button>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Material das barras</h2>
+    <form id="f-mat" novalidate>
+      <div class="fields">
+        <label class="field">Módulo E<span class="box"><input id="in-E" type="number" inputmode="decimal" step="any" min="0"><em>GPa</em></span></label>
+        <label class="field">Área A<span class="box"><input id="in-A" type="number" inputmode="decimal" step="any" min="0"><em>mm²</em></span></label>
+      </div>
+      <p class="err" id="err-mat" role="alert"></p>
+    </form>
+  </div>
+
+  <div class="sec">
+    <div class="status" id="eq-status"></div>
+  </div>
+
+  <div class="sec actions">
+    <button type="button" class="btn" id="b-clear">Remover pesos</button>
+    <button type="button" class="btn" id="b-reset">Restaurar tudo</button>
+  </div>
+
+  <div class="sec">
+    <p class="note">Modelo idealizado de treliça plana 2D. As barras são consideradas biarticuladas e submetidas predominantemente a esforços axiais. O modelo não representa diretamente flexão, folgas, atrito nas articulações, excentricidades ou deformações das conexões presentes no protótipo físico.</p>
+  </div>
+</aside>
+
+<script>
+'use strict';
+/* =====================================================================
+   Treliça plana 2D — arquivo único, sem dependências, funciona offline.
+   Método da rigidez. Unidades internas SI (m, N, Pa, m²).
+   Convenção: N > 0 tração (azul), N < 0 compressão (vermelho).
+   ===================================================================== */
+
+const G = 9.80665; // m/s²
+
+const CONFIG = {
+  zeroRel: 1e-4,   // |N| < zeroRel · Fref -> sem esforço
+  zeroAbs: 1e-9,   // N
+  pivotRel: 1e-9,  // pivô mínimo relativo à maior rigidez da diagonal
+  eqRel: 1e-6,
+  eqAbs: 1e-9,
+  maxMassKg: 1000
+};
+
+/* Geometria idealizada da foto do protótipo (centros das articulações medidos na imagem,
+   escala estimada ≈ 0,66 mm/px). A: apoio esquerdo, B/D: nós superiores,
+   C: nó central inferior (onde o peso fica pendurado), E: apoio direito. */
+const INITIAL_MODEL = {
+  nodes: [
+    { id: 'A', x: 0,   y: 0,   support: 'pin' },
+    { id: 'B', x: 95,  y: 150, support: null },
+    { id: 'C', x: 180, y: 0,   support: null },
+    { id: 'D', x: 265, y: 150, support: null },
+    { id: 'E', x: 360, y: 0,   support: 'roller' }
+  ],
+  members: [
+    { id: 'B1', a: 'A', b: 'B' },
+    { id: 'B2', a: 'B', b: 'D' },
+    { id: 'B3', a: 'D', b: 'E' },
+    { id: 'B4', a: 'A', b: 'C' },
+    { id: 'B5', a: 'C', b: 'E' },
+    { id: 'B6', a: 'B', b: 'C' },
+    { id: 'B7', a: 'C', b: 'D' }
+  ],
+  // valores globais; cada barra pode futuramente ter E_GPa e A_mm2 próprios
+  props: { E_GPa: 200, A_mm2: 50 }
+};
+
+const SUPPORTS = {
+  pin:    { ux: true,  uy: true },
+  roller: { ux: false, uy: true }
+};
+
+const state = {
+  model: null,
+  loads: {},          // { nodeId: { m, Fx, Fy } }
+  mass: 5,
+  result: null,
+  sel: null,          // id da barra selecionada
+  show: { values: false, names: false, reactions: false, deformed: false }
+};
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const clone = o => JSON.parse(JSON.stringify(o));
+const r3 = v => Math.round(v * 1000) / 1000;
+const NF = {};
+function fmt(v, d = 1) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  const f = NF[d] || (NF[d] = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }));
+  let s = f.format(v);
+  if (/^-0(,0+)?$/.test(s)) s = s.slice(1);
+  return s;
+}
+function parseNum(input) {
+  const raw = String(input.value).trim().replace(',', '.');
+  if (raw === '') return { ok: false, msg: 'Informe um número.' };
+  const v = Number(raw);
+  return Number.isFinite(v) ? { ok: true, v } : { ok: false, msg: 'Número inválido.' };
+}
+const nodeById = id => state.model.nodes.find(n => n.id === id);
+const memberE = m => (Number.isFinite(m.E_GPa) ? m.E_GPa : state.model.props.E_GPa) * 1e9;
+const memberA = m => (Number.isFinite(m.A_mm2) ? m.A_mm2 : state.model.props.A_mm2) * 1e-6;
+
+/* ================= CÁLCULO (método da rigidez) ================= */
+function validateGeometry(model) {
+  const errors = [];
+  for (let i = 0; i < model.nodes.length; i++)
+    for (let j = i + 1; j < model.nodes.length; j++) {
+      const a = model.nodes[i], b = model.nodes[j];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < 1e-3) errors.push(`Nós ${a.id} e ${b.id} coincidentes.`);
+    }
+  model.members.forEach(m => {
+    const a = nodeById(m.a), b = nodeById(m.b);
+    if (!a || !b || m.a === m.b) { errors.push(`Barra ${m.id} com ligação inválida.`); return; }
+    if (!(memberE(m) > 0) || !(memberA(m) > 0)) errors.push(`E e A da barra ${m.id} devem ser positivos.`);
+  });
+  return { ok: errors.length === 0, errors };
+}
+
+function nodeIndexMap(model) { const idx = {}; model.nodes.forEach((n, i) => { idx[n.id] = i; }); return idx; }
+
+function assembleGlobalStiffness(model, idx) {
+  const ndof = model.nodes.length * 2;
+  const K = Array.from({ length: ndof }, () => new Float64Array(ndof));
+  const elems = model.members.map(m => {
+    const i = idx[m.a], j = idx[m.b], n1 = model.nodes[i], n2 = model.nodes[j];
+    const dx = (n2.x - n1.x) * 1e-3, dy = (n2.y - n1.y) * 1e-3;
+    const L = Math.hypot(dx, dy), c = dx / L, s = dy / L;
+    const E = memberE(m), A = memberA(m), k = E * A / L;
+    const ke = [[c * c, c * s, -c * c, -c * s], [c * s, s * s, -c * s, -s * s], [-c * c, -c * s, c * c, c * s], [-c * s, -s * s, c * s, s * s]];
+    const dofs = [2 * i, 2 * i + 1, 2 * j, 2 * j + 1];
+    for (let r = 0; r < 4; r++) for (let q = 0; q < 4; q++) K[dofs[r]][dofs[q]] += k * ke[r][q];
+    return { id: m.id, i, j, L, c, s, E, A, k };
+  });
+  return { K, elems };
+}
+
+function buildLoadVector(model, idx, loads) {
+  const F = new Float64Array(model.nodes.length * 2);
+  Object.keys(loads).forEach(id => { const i = idx[id]; if (i === undefined) return; F[2 * i] += loads[id].Fx; F[2 * i + 1] += loads[id].Fy; });
+  return F;
+}
+
+function applyBoundaryConditions(model) {
+  const free = [], fixed = [];
+  model.nodes.forEach((n, i) => {
+    const sp = n.support ? SUPPORTS[n.support] : null;
+    (sp && sp.ux ? fixed : free).push(2 * i);
+    (sp && sp.uy ? fixed : free).push(2 * i + 1);
+  });
+  return { free, fixed };
+}
+
+/* Gauss com pivotamento parcial; lança {singular:true} se o pivô for desprezível. */
+function solveLinearSystem(Ain, bin) {
+  const n = bin.length, M = Ain.map(r => Float64Array.from(r)), x = Float64Array.from(bin);
+  let scale = 0; for (let i = 0; i < n; i++) scale = Math.max(scale, Math.abs(M[i][i]));
+  if (!(scale > 0)) throw { singular: true };
+  const tol = CONFIG.pivotRel * scale;
+  for (let k = 0; k < n; k++) {
+    let p = k, best = Math.abs(M[k][k]);
+    for (let i = k + 1; i < n; i++) { const v = Math.abs(M[i][k]); if (v > best) { best = v; p = i; } }
+    if (!(best > tol)) throw { singular: true };
+    if (p !== k) { [M[k], M[p]] = [M[p], M[k]]; [x[k], x[p]] = [x[p], x[k]]; }
+    for (let i = k + 1; i < n; i++) {
+      const f = M[i][k] / M[k][k]; if (f === 0) continue;
+      for (let j = k; j < n; j++) M[i][j] -= f * M[k][j];
+      x[i] -= f * x[k];
+    }
+  }
+  for (let i = n - 1; i >= 0; i--) { let s = x[i]; for (let j = i + 1; j < n; j++) s -= M[i][j] * x[j]; x[i] = s / M[i][i]; }
+  for (let i = 0; i < n; i++) if (!Number.isFinite(x[i])) throw { singular: true };
+  return x;
+}
+
+/* N = (EA/L)·[c(u2x−u1x) + s(u2y−u1y)] */
+function calculateMemberForces(elems, u) {
+  return elems.map(e => {
+    const dL = e.c * (u[2 * e.j] - u[2 * e.i]) + e.s * (u[2 * e.j + 1] - u[2 * e.i + 1]);
+    return { id: e.id, N: e.k * dL, L: e.L };
+  });
+}
+
+/* R = K·u − F nos graus de liberdade restringidos */
+function calculateReactions(K, u, F, fixed) {
+  const R = new Float64Array(F.length);
+  fixed.forEach(d => { let s = 0; for (let q = 0; q < u.length; q++) s += K[d][q] * u[q]; R[d] = s - F[d]; });
+  return R;
+}
+
+/* ΣFx, ΣFy, ΣM (em torno do nó A) e resíduo nodal a partir dos esforços N */
+function checkEquilibrium(model, elems, forces, F, R) {
+  const n0 = model.nodes[0];
+  let sumFx = 0, sumFy = 0, sumM = 0, Fref = 0;
+  model.nodes.forEach((nd, i) => {
+    const fx = F[2 * i] + R[2 * i], fy = F[2 * i + 1] + R[2 * i + 1];
+    sumFx += fx; sumFy += fy; sumM += (nd.x - n0.x) * 1e-3 * fy - (nd.y - n0.y) * 1e-3 * fx;
+    Fref += Math.abs(F[2 * i]) + Math.abs(F[2 * i + 1]);
+  });
+  const res = new Float64Array(F.length);
+  for (let d = 0; d < F.length; d++) res[d] = F[d] + R[d];
+  elems.forEach((e, k) => { const N = forces[k].N; res[2 * e.i] += N * e.c; res[2 * e.i + 1] += N * e.s; res[2 * e.j] -= N * e.c; res[2 * e.j + 1] -= N * e.s; });
+  let nodalRes = 0; for (let d = 0; d < res.length; d++) nodalRes = Math.max(nodalRes, Math.abs(res[d]));
+  const tolF = Math.max(CONFIG.eqAbs, CONFIG.eqRel * Fref), tolM = tolF * 1;
+  return { sumFx, sumFy, sumM, nodalRes, ok: Math.abs(sumFx) <= tolF && Math.abs(sumFy) <= tolF && Math.abs(sumM) <= tolM && nodalRes <= tolF };
+}
+
+function analyze() {
+  const model = state.model;
+  const geo = validateGeometry(model);
+  if (!geo.ok) return { ok: false, message: geo.errors[0] + ' Verifique apoios, conectividade e geometria.' };
+  const idx = nodeIndexMap(model), ndof = model.nodes.length * 2;
+  const { K, elems } = assembleGlobalStiffness(model, idx);
+  const F = buildLoadVector(model, idx, state.loads);
+  const { free, fixed } = applyBoundaryConditions(model);
+  let uf;
+  try { uf = solveLinearSystem(free.map(i => free.map(j => K[i][j])), free.map(i => F[i])); }
+  catch (e) { if (e && e.singular) return { ok: false, message: 'Estrutura instável: a matriz de rigidez é singular. Verifique apoios, conectividade e geometria.' }; throw e; }
+  const u = new Float64Array(ndof); free.forEach((d, k) => { u[d] = uf[k]; });
+  const forces = calculateMemberForces(elems, u);
+  const R = calculateReactions(K, u, F, fixed);
+  const eq = checkEquilibrium(model, elems, forces, F, R);
+  if (!forces.every(f => Number.isFinite(f.N))) return { ok: false, message: 'Não foi possível calcular a estrutura. Verifique a geometria e os apoios.' };
+  let sumAbsF = 0; for (let d = 0; d < ndof; d++) sumAbsF += Math.abs(F[d]);
+  let maxAbsN = 0; forces.forEach(f => { maxAbsN = Math.max(maxAbsN, Math.abs(f.N)); });
+  const tolN = Math.max(CONFIG.zeroAbs, CONFIG.zeroRel * Math.max(sumAbsF, maxAbsN));
+  forces.forEach(f => { f.state = Math.abs(f.N) < tolN ? 'Z' : f.N > 0 ? 'T' : 'C'; });
+  let maxDisp = 0; for (let i = 0; i < model.nodes.length; i++) maxDisp = Math.max(maxDisp, Math.hypot(u[2 * i], u[2 * i + 1]) * 1e3);
+  return { ok: true, u, R, fixed, forces, eq, tolN, maxAbsN, maxDispMm: maxDisp };
+}
+
+/* ================= CARGAS ================= */
+function toggleWeight(id) {
+  if (state.loads[id]) delete state.loads[id];
+  else state.loads[id] = { m: state.mass, Fx: 0, Fy: -state.mass * G };
+  update();
+}
+function setMass(m) {
+  state.mass = m;
+  Object.keys(state.loads).forEach(id => { state.loads[id] = { m, Fx: 0, Fy: -m * G }; });
+  update();
+}
+
+/* ================= DESENHO ================= */
+const svg = $('#stage');
+let U = 1;               // unidades do desenho (mm) por pixel de tela
+let span = 360;
+const S = v => v * U;
+const P = n => ({ x: n.x, y: -n.y });
+const f = v => r3(v);
+const scene = { members: {}, nodes: {} };
+
+/* Monta os elementos uma vez (e a cada redimensionamento); as cores só mudam depois,
+   para que a transição de cor seja suave. */
+function buildScene() {
+  const ns = state.model.nodes;
+  const xs = ns.map(n => n.x), ys = ns.map(n => n.y);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  span = Math.max(maxX - minX, maxY - minY, 1);
+  const vb = { x: minX - 0.1 * span, y: -maxY - 0.2 * span, w: (maxX - minX) + 0.2 * span, h: (maxY - minY) + 0.52 * span };
+  svg.setAttribute('viewBox', `${f(vb.x)} ${f(vb.y)} ${f(vb.w)} ${f(vb.h)}`);
+  const rect = svg.getBoundingClientRect();
+  const ppu = Math.min(rect.width / vb.w, rect.height / vb.h) || 1;
+  U = 1 / ppu;
+
+  let halos = '', lines = '', hits = '', sups = '', nodes = '';
+  state.model.members.forEach(m => {
+    const a = P(nodeById(m.a)), b = P(nodeById(m.b));
+    const xy = `x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}"`;
+    halos += `<line class="halo" data-h="${m.id}" ${xy} stroke-width="${f(S(26))}"/>`;
+    lines += `<line class="m X" data-m="${m.id}" ${xy} style="stroke-width:${f(S(7))}px"/>`;
+    hits += `<line class="hit" data-member="${m.id}" ${xy} stroke-width="${f(S(30))}"/>`;
+  });
+  const h = S(26);
+  ns.forEach(n => {
+    const p = P(n);
+    if (n.support) {
+      const gy = p.y + h;
+      let hatch = '';
+      for (let k = -2; k <= 2; k++) hatch += `M${f(p.x + k * h * 0.34)} ${f(gy + S(3))}l${f(-h * 0.22)} ${f(h * 0.3)}`;
+      if (n.support === 'pin') {
+        sups += `<polygon class="sup" stroke-width="${f(S(1.6))}" points="${f(p.x)},${f(p.y)} ${f(p.x - h * 0.62)},${f(gy)} ${f(p.x + h * 0.62)},${f(gy)}"/>`;
+      } else {
+        const th = h * 0.7, rr = (h - th) / 2;
+        sups += `<polygon class="sup" stroke-width="${f(S(1.6))}" points="${f(p.x)},${f(p.y)} ${f(p.x - h * 0.56)},${f(p.y + th)} ${f(p.x + h * 0.56)},${f(p.y + th)}"/>` +
+          `<circle class="sup" stroke-width="${f(S(1.6))}" cx="${f(p.x - h * 0.3)}" cy="${f(p.y + th + rr)}" r="${f(rr)}"/>` +
+          `<circle class="sup" stroke-width="${f(S(1.6))}" cx="${f(p.x + h * 0.3)}" cy="${f(p.y + th + rr)}" r="${f(rr)}"/>`;
+      }
+      sups += `<path class="gnd" stroke-width="${f(S(1.6))}" d="M${f(p.x - h)} ${f(gy + S(3))}H${f(p.x + h)}${hatch}"/>`;
+    }
+    const free = !n.support;
+    nodes += `<g class="ng${free ? ' free' : ''}" data-node="${n.id}"${free ? ` tabindex="0" role="button" aria-label="Nó ${n.id}: pendurar ou retirar peso"` : ''}>` +
+      `<g class="wg" data-w="${n.id}"><line class="string" x1="${f(p.x)}" y1="${f(p.y + S(8))}" x2="${f(p.x)}" y2="${f(p.y + S(40))}" stroke-width="${f(S(1.5))}"/>` +
+      `<rect class="wt" x="${f(p.x - S(8))}" y="${f(p.y + S(40))}" width="${f(S(16))}" height="${f(S(22))}" rx="${f(S(4))}"/></g>` +
+      `<circle class="nhalo" cx="${f(p.x)}" cy="${f(p.y)}" r="${f(S(20))}"/>` +
+      `<circle class="node" cx="${f(p.x)}" cy="${f(p.y)}" r="${f(S(7.5))}" stroke-width="${f(S(2.2))}"/>` +
+      (free ? `<circle class="hitn" cx="${f(p.x)}" cy="${f(p.y)}" r="${f(S(26))}"/>` : '') + '</g>';
+  });
+
+  svg.innerHTML = `<g id="g-def"></g><g>${halos}</g><g>${lines}</g><g>${sups}</g><g id="g-rx"></g><g>${hits}</g><g>${nodes}</g><g id="g-lbl" style="pointer-events:none"></g>`;
+  scene.members = {}; scene.nodes = {};
+  state.model.members.forEach(m => { scene.members[m.id] = { line: svg.querySelector(`[data-m="${m.id}"]`), halo: svg.querySelector(`[data-h="${m.id}"]`) }; });
+  ns.forEach(n => { scene.nodes[n.id] = { g: svg.querySelector(`[data-node="${n.id}"]`), w: svg.querySelector(`[data-w="${n.id}"]`) }; });
+}
+
+function renderScene() {
+  const r = state.result;
+  state.model.members.forEach((m, k) => {
+    const el = scene.members[m.id];
+    const fr = r && r.ok ? r.forces[k] : null;
+    const st = fr ? fr.state : 'X';
+    const w = fr && st !== 'Z' && r.maxAbsN > 0 ? 7 + 5 * Math.abs(fr.N) / r.maxAbsN : 7;
+    el.line.setAttribute('class', 'm ' + st);
+    el.line.style.strokeWidth = f(S(w)) + 'px';
+    el.halo.classList.toggle('on', state.sel === m.id);
+  });
+  // pesos pendurados: tamanho cresce um pouco com a massa
+  const hpx = 16 + 12 * Math.min(1, Math.log10(1 + state.mass) / 2);
+  state.model.nodes.forEach(n => {
+    const el = scene.nodes[n.id], on = !!state.loads[n.id];
+    el.g.classList.toggle('loaded', on);
+    el.w.classList.toggle('on', on);
+    const rect = el.w.querySelector('rect');
+    rect.setAttribute('height', f(S(hpx)));
+  });
+  renderOverlays();
+}
+
+function renderOverlays() {
+  const r = state.result, sh = state.show;
+  let lbl = '', def = '', rx = '';
+  const t = (x, y, s, cls, anchor = 'middle') =>
+    `<text class="lbl ${cls}" x="${f(x)}" y="${f(y)}" text-anchor="${anchor}" dominant-baseline="central" stroke-width="${f(S(4))}" font-size="${f(S(cls === 'n' ? 14 : 12))}">${s}</text>`;
+
+  if (sh.names) state.model.nodes.forEach(n => {
+    const p = P(n), top = n.y > 0;
+    lbl += t(p.x + (n.support ? (n.x < span / 2 ? -S(18) : S(18)) : S(16)), p.y + (top ? -S(18) : n.support ? -S(14) : S(18)), n.id, 'n');
+  });
+  if (r && r.ok && sh.values) {
+    state.model.members.forEach((m, k) => {
+      const a = P(nodeById(m.a)), b = P(nodeById(m.b)), fr = r.forces[k];
+      let nx = -(b.y - a.y), ny = b.x - a.x; const L = Math.hypot(nx, ny) || 1; nx /= L; ny /= L;
+      if (ny > 0 || (Math.abs(ny) < 1e-9 && nx < 0)) { nx = -nx; ny = -ny; }   // rótulo sempre do lado de cima/esquerda
+      const val = fr.state === 'Z' ? '0' : (fr.N > 0 ? '+' : '') + fmt(fr.N) + ' N';
+      lbl += t((a.x + b.x) / 2 + nx * S(19), (a.y + b.y) / 2 + ny * S(19), val, fr.state);
+    });
+    Object.keys(state.loads).forEach(id => { const p = P(nodeById(id)); lbl += t(p.x + S(14), p.y + S(52), fmt(state.loads[id].m, state.loads[id].m % 1 ? 1 : 0) + ' kg', 'k', 'start'); });
+  }
+  if (r && r.ok && sh.reactions) {
+    const idx = nodeIndexMap(state.model);
+    let Rmax = 0; r.fixed.forEach(d => { Rmax = Math.max(Rmax, Math.abs(r.R[d])); });
+    state.model.nodes.forEach(n => {
+      if (!n.support || !(Rmax > r.tolN)) return;
+      const i = idx[n.id], p = P(n), Ry = r.R[2 * i + 1], Rx = r.R[2 * i];
+      const y0 = p.y + S(36);
+      if (Math.abs(Ry) > r.tolN) {
+        const L = S(22) + S(26) * Math.abs(Ry) / Rmax;
+        rx += arrow(p.x, Ry > 0 ? y0 + L : y0, p.x, Ry > 0 ? y0 : y0 + L);
+        if (sh.values) lbl += t(p.x + (n.x < span / 2 ? S(10) : -S(10)), y0 + L - S(6), fmt(Math.abs(Ry)) + ' N', 'k', n.x < span / 2 ? 'start' : 'end');
+      }
+      if (SUPPORTS[n.support].ux && Math.abs(Rx) > r.tolN) {
+        const side = n.x < span / 2 ? -1 : 1, x0 = p.x + side * S(22), L = S(30), yy = p.y + S(14);
+        rx += (Rx > 0) === (side < 0) ? arrow(x0 + side * L, yy, x0, yy) : arrow(x0, yy, x0 + side * L, yy);
+      }
+    });
+  }
+  if (r && r.ok && sh.deformed && r.maxDispMm > 0) {
+    const sc = 0.06 * span / r.maxDispMm, idx = nodeIndexMap(state.model);
+    const dp = n => { const i = idx[n.id]; return { x: n.x + sc * r.u[2 * i] * 1e3, y: -(n.y + sc * r.u[2 * i + 1] * 1e3) }; };
+    state.model.members.forEach(m => {
+      const a = dp(nodeById(m.a)), b = dp(nodeById(m.b));
+      def += `<line class="def" x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" stroke-width="${f(S(2))}" stroke-dasharray="${f(S(6))} ${f(S(5))}"/>`;
+    });
+  }
+  $('#g-lbl').innerHTML = lbl;
+  $('#g-def').innerHTML = def;
+  $('#g-rx').innerHTML = rx;
+}
+
+function arrow(x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+  const hl = S(9), hw = S(4.5), bx = x2 - ux * hl, by = y2 - uy * hl;
+  return `<line class="rx" x1="${f(x1)}" y1="${f(y1)}" x2="${f(bx)}" y2="${f(by)}" stroke-width="${f(S(2))}"/>` +
+    `<polygon class="rx" stroke-width="0" points="${f(x2)},${f(y2)} ${f(bx - uy * hw)},${f(by + ux * hw)} ${f(bx + uy * hw)},${f(by - ux * hw)}"/>`;
+}
+
+/* ---------- textos da interface ---------- */
+const STATE_TXT = { T: 'Tração', C: 'Compressão', Z: 'Sem esforço' };
+function renderUI() {
+  const r = state.result, nLoads = Object.keys(state.loads).length;
+  $('#hint').classList.toggle('hide', nLoads > 0 || !!state.sel);
+
+  const pill = $('#pill');
+  if (state.sel && r && r.ok) {
+    const k = state.model.members.findIndex(m => m.id === state.sel), m = state.model.members[k], fr = r.forces[k];
+    const cls = { T: 't', C: 'c', Z: 'z' }[fr.state];
+    pill.innerHTML = `<i class="dot ${cls}"></i><b>Barra ${m.a}–${m.b}</b><span>${STATE_TXT[fr.state]}${state.show.values && fr.state !== 'Z' ? ', ' + fmt(Math.abs(fr.N)) + ' N' : ''}</span>`;
+    pill.classList.add('show');
+  } else pill.classList.remove('show');
+
+  const toast = $('#toast');
+  if (r && !r.ok) { toast.textContent = r.message; toast.hidden = false; } else toast.hidden = true;
+
+  const st = $('#eq-status');
+  if (!r || !r.ok) { st.className = 'status bad'; st.textContent = 'Não foi possível calcular'; }
+  else if (!nLoads) { st.className = 'status'; st.textContent = 'Sem pesos pendurados'; }
+  else if (r.eq.ok) { st.className = 'status ok'; st.textContent = '✓ Equilíbrio verificado (ΣFx, ΣFy, ΣM ≈ 0)'; }
+  else { st.className = 'status bad'; st.textContent = 'Equilíbrio fora da tolerância: verificar modelo'; }
+}
+
+/* ================= ATUALIZAÇÃO ================= */
+function update() {
+  try { state.result = analyze(); }
+  catch (e) { console.error(e); state.result = { ok: false, message: 'Não foi possível calcular a estrutura. Verifique a geometria e os apoios.' }; }
+  renderScene();
+  renderUI();
+}
+
+function syncMenu() {
+  $('#mass').value = r3(state.mass);
+  $$('[data-show]').forEach(cb => { cb.checked = !!state.show[cb.dataset.show]; });
+  const e = state.model.nodes.find(n => n.id === 'E');
+  $$('[data-sup]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sup === e.support)));
+  $('#in-E').value = state.model.props.E_GPa;
+  $('#in-A').value = state.model.props.A_mm2;
+}
+
+function resetSimulation() {
+  state.model = clone(INITIAL_MODEL);
+  state.loads = {};
+  state.mass = 5;
+  state.sel = null;
+  state.show = { values: false, names: false, reactions: false, deformed: false };
+  CONFIG.zeroRel = 1e-4;
+  syncMenu();
+  buildScene();
+  update();
+}
+
+/* ================= EVENTOS ================= */
+function setMenu(open) {
+  $('#drawer').classList.toggle('open', open);
+  $('#scrim').classList.toggle('open', open);
+  $('#menu-btn').classList.toggle('open', open);
+  $('#menu-btn').setAttribute('aria-expanded', String(open));
+  $('#menu-btn').setAttribute('aria-label', open ? 'Fechar opções' : 'Abrir opções');
+}
+
+function bindEvents() {
+  svg.addEventListener('click', e => {
+    const n = e.target.closest('.ng.free');
+    if (n) { toggleWeight(n.dataset.node); return; }
+    const m = e.target.closest('[data-member]');
+    state.sel = m && state.sel !== m.dataset.member ? m.dataset.member : null;
+    renderScene(); renderUI();
+  });
+  svg.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const n = e.target.closest('.ng.free'); if (n) { e.preventDefault(); toggleWeight(n.dataset.node); }
+  });
+
+  $('#menu-btn').addEventListener('click', () => setMenu(!$('#drawer').classList.contains('open')));
+  $('#scrim').addEventListener('click', () => setMenu(false));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+
+  const applyMass = v => {
+    const err = $('#err-mass');
+    if (!(v > 0) || v > CONFIG.maxMassKg) { err.textContent = `Use um peso entre 0 e ${CONFIG.maxMassKg} kg.`; return; }
+    err.textContent = ''; setMass(v); $('#mass').value = r3(v);
+  };
+  $('#m-dec').addEventListener('click', () => applyMass(Math.max(0.5, Math.round((state.mass - 1) * 2) / 2)));
+  $('#m-inc').addEventListener('click', () => applyMass(Math.round((state.mass + 1) * 2) / 2));
+  $('#mass').addEventListener('change', e => { const p = parseNum(e.target); if (!p.ok) { $('#err-mass').textContent = p.msg; return; } applyMass(p.v); });
+
+  $$('[data-show]').forEach(cb => cb.addEventListener('change', () => { state.show[cb.dataset.show] = cb.checked; renderOverlays(); renderUI(); }));
+  $$('[data-sup]').forEach(b => b.addEventListener('click', () => {
+    state.model.nodes.find(n => n.id === 'E').support = b.dataset.sup;
+    syncMenu(); buildScene(); update();
+  }));
+  const applyMat = () => {
+    const pE = parseNum($('#in-E')), pA = parseNum($('#in-A')), err = $('#err-mat');
+    if (!pE.ok || !(pE.v > 0) || pE.v > 1e4) { err.textContent = 'E deve ser positivo (GPa).'; return; }
+    if (!pA.ok || !(pA.v > 0) || pA.v > 1e7) { err.textContent = 'A deve ser positiva (mm²).'; return; }
+    err.textContent = ''; state.model.props.E_GPa = pE.v; state.model.props.A_mm2 = pA.v; update();
+  };
+  $('#in-E').addEventListener('change', applyMat);
+  $('#in-A').addEventListener('change', applyMat);
+  $('#f-mat').addEventListener('submit', e => { e.preventDefault(); applyMat(); });
+
+  $('#b-clear').addEventListener('click', () => { state.loads = {}; update(); });
+  $('#b-reset').addEventListener('click', () => { resetSimulation(); setMenu(false); });
+
+  let raf = 0;
+  const onResize = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { buildScene(); renderScene(); }); };
+  if ('ResizeObserver' in window) new ResizeObserver(onResize).observe(svg); else window.addEventListener('resize', onResize);
+}
+
+/* ================= INÍCIO ================= */
+state.model = clone(INITIAL_MODEL);
+syncMenu();
+bindEvents();
+buildScene();
+update();
+
+// acesso para verificação pelo console (não usado pela interface)
+window.__trelica = { state, analyze, toggleWeight, setMass, update, resetSimulation, G };
+</script>
+</body>
+</html>
